@@ -1,9 +1,12 @@
 // import { useState } from "react";
 
-// const isValidPhone = (str) =>
-//   /^\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/.test(
-//     str
-//   );
+import { Form, redirect, useActionData, useNavigation } from "react-router-dom";
+import { createOrder } from "../../services/apiRestaurant";
+
+const isValidPhone = (str) =>
+  /^\+?\d{1,4}?[-.\s]?\(?\d{1,3}?\)?[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}$/.test(
+    str
+  );
 
 const fakeCart = [
   {
@@ -30,7 +33,13 @@ const fakeCart = [
 ];
 
 function CreateOrder() {
+
+  const navigation = useNavigation()
   // const [withPriority, setWithPriority] = useState(false);
+
+  const isSubmitting = navigation.state === 'submitting'
+  const formErrors = useActionData();
+
   const cart = fakeCart;
 
   console.log(cart)
@@ -39,7 +48,7 @@ function CreateOrder() {
     <div>
       <h2>Ready to order? Let&apos;s go!</h2>
 
-      <form>
+      <Form method="POST" action="">
         <div>
           <label>First Name</label>
           <input type="text" name="customer" required />
@@ -50,6 +59,7 @@ function CreateOrder() {
           <div>
             <input type="tel" name="phone" required />
           </div>
+          {formErrors?.phone && <p>{formErrors.phone}</p>}
         </div>
 
         <div>
@@ -71,11 +81,39 @@ function CreateOrder() {
         </div>
 
         <div>
-          <button>Order now</button>
+          <input type="hidden" name="cart" value={JSON.stringify(cart)}/>
+          <button disabled={isSubmitting}>{isSubmitting ? "submiting order" : "order now"}</button>
         </div>
-      </form>
+      </Form>
     </div>
   );
 }
+
+export async function action({request}){
+  const formData = await request.formData();
+  const data = Object.fromEntries(formData)
+  console.log(data)
+
+  const order = {
+    ...data,
+    cart:JSON.parse(data.cart),
+    priority:data.priority === 'on'
+  }
+
+  const errors = {}
+  if(!isValidPhone(order.phone)) 
+    errors.phone = 'please enter valid phone number.We might need to contact you'
+
+  if(Object.keys(errors).length > 0 ) return errors
+  
+  const newOrder = await createOrder(order);
+
+
+
+
+  return redirect(`/order/${newOrder.id}`);
+
+}
+
 
 export default CreateOrder;
